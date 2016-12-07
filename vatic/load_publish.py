@@ -1,6 +1,6 @@
 from subprocess import call, check_output
 import json
-
+import re
 import jinja2
 users = ["Debbie", "Wen-Ling", "John-Doe", "Yeah-yeah","Da-Da"]
 
@@ -19,55 +19,83 @@ def generate_admin(users, URLS, URL_padding=16 ):
 
 
 
-def generate_JS(users, URLs, URL_padding=16, output_path="./public/URL_map.js"):
-    K = len(URLs)/len(users)
+def generate_JS(user_map, URL_padding=16, output_path="./public/URL_map.js"):
+    URL_profiles = []
+
+    for user in user_map:
+        for assignment in user_map[user]:
+            for url in user_map[user][assignment]:
+
+                profile = {"user":user, "assignment":assignment, "url":url}
+                URL_profiles.append(profile)
+
     next_URL = {}
     previous_URL = {}
+    #print(URL_profiles)
+    for i, profile in enumerate(URL_profiles):
+        url_id = re.search(r'\d+', profile["url"]).group()
+        last_profile = None if i==0 else URL_profiles[i-1]
+        next_profile = None if i>=len(URL_profiles)-1 else URL_profiles[i+1]
 
-    for i, _ in enumerate(URLs):
-        if i % K == 0:
-
-            previous_URL[i+1] = "head"
-            next_URL[i+1] = URLs[i+1][URL_padding:]
-
-        elif i % K == K-1:
-            previous_URL[i+1] = URLs[i-1][URL_padding:]
-            next_URL[i+1] = "end"
+        if last_profile and last_profile["user"] == profile["user"]:
+            previous_URL[url_id] = last_profile["url"][URL_padding:]
         else:
-            previous_URL[i+1] = URLs[i-1][URL_padding:]
-            next_URL[i+1] = URLs[i+1][URL_padding:]
-        #print(previous_URL[1])
+            previous_URL[url_id] = "head"
 
+        if next_profile and next_profile["user"] == profile["user"]:
+            next_URL[url_id] = next_profile["url"][URL_padding:]
+        else:
+            previous_URL[url_id] = "end"
 
     w = open(output_path, "w")
     w.write("var previous_URL = {};\n".format(json.dumps(previous_URL)))
     w.write("var next_URL = {};\n".format(json.dumps(next_URL)))
     w.close()
 
-def render_template(user_map,output_path="./public/directory/index.html"):
+
+
+def render_template(user_map,URL_padding=16 ,output_path="./public/directory/index.html"):
+
+
+    for user in user_map:
+        counter = 0
+        for assignment in user_map[user]:
+            for i,url in enumerate(user_map[user][assignment]):
+                counter += 1
+                print(url)
+                user_map[user][assignment][i] = {"url":url[URL_padding:], "count":counter}
+
+
+
+
+
     HTML = """
     <html>
     <head>
     <title>Iron Yun Vatic Server</title>
     </head>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css">
     <body>
-    <div class="text-center">
-    {% for single_map in user_map %}
 
-    <h2>{{  single_map.user }}</h2>
-    <ul class="list-group">
-    {% for URL in single_map.URLs %}
-      <li><a href={{URL.URL}}>{{ single_map.user}}'s Segment: {{URL.count}}</a>
-      </li>
-
-    {% endfor %}
-
-    </ul>
-
-    {% endfor %}
+    <div class="text-center panel list-group">
+        {% for user in user_map %}
+            <a href="#" data-parent="#menu" class="list-group-item" data-toggle="collapse" data-target="#{{user}}"><h2>{{  user }}</h2></a>
+            <div id={{user}} class="collapse">
+                {%for assignment in user_map[user]%}
+                    <h3>{{assignment}}</h3>
+                    <ul class="list-group">
+                    {% for url in user_map[user][assignment] %}
+                        <li><a href={{url.url}}>{{user}}'s Segment:{{url.count}} </a></li>
+                    {% endfor %}
+                    </ul>
+                {% endfor %}
+            </div>
+            {% endfor %}
     </div>
+
     </body>
     </html>
 
@@ -78,29 +106,12 @@ def render_template(user_map,output_path="./public/directory/index.html"):
     w.write(jinja2.Environment().from_string(HTML).render(user_map=user_map))
     w.close()
 
-def get_user_map(users, URLs, URL_padding = 16):
-
-    K = len(URLs)/len(users)
-    user_map = []
-    for i, user in enumerate(users):
-        single_map = {"user":user}
-        URL_map = []
-        for URL_count, URL in enumerate(URLs[i*K:(i+1)*K]):
-            URL_map.append({"count":URL_count+1, "URL": URL[URL_padding :]})
-        single_map["URLs"] = URL_map
-
-        user_map.append({"user":user, "URLs":URL_map})
-    return user_map
 
 
 
 
 
-    URL_map_flat = [{"URL":URL, "user":URL_map[URL]} for URL in sorted(URL_map.keys()) ]
-    print(URL_map_flat)
-    w = open(output_path, "w")
-    w.write(Environment().from_string(HTML).render(URL_maps=URL_map_flat))
-    w.close()
+
 
 
 for user in users:
@@ -110,19 +121,15 @@ for user in users:
 
 #publsh the video
 command = ["turkic", "publish", "--offline"]
-URLs = check_output(command).strip().split("\n")
-
-if len(URLs) == 0 or (len(URLs) % len(users)) != 0:
-    print("Dman son, something is wrong!")
-    print("URLs: {}, Users:{}".format(len(URLs), len(users)))
-    raise()
-
+call(command)
+command = ["turkic", "list", "--detail"]
+user_map = json.load(open("user_map.json"))
 
 
 #K is the number of video per user
 
 
-user_map = get_user_map(users, URLs)
-generate_JS(users, URLs)
+#user_map = get_user_map(users, )
+generate_JS(user_map)
 render_template(user_map)
-generate_admin(users, URLs)
+#generate_admin(users)
