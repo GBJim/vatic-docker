@@ -2,7 +2,7 @@ from subprocess import call, check_output
 import json
 import re
 import jinja2
-users = ["Debbie", "Wen-Ling", "John-Doe", "Yeah-yeah","Da-Da"]
+users = ["Debbie", "Wen-Ling"]
 
 
 def generate_admin(users, URLS, URL_padding=16 ):
@@ -121,15 +121,17 @@ for user in users:
 
 #publsh the video
 command = ["turkic", "publish", "--offline"]
-call(command)
+check_output(command)
 command = ["turkic", "list", "--detail"]
-user_map = json.load(open("user_map.json"))
+call(command)
+user_map = json.load(open("data/user_map.json"))
 
 
-#K is the number of video per user
+for user in user_map:
+    print(user)
+    for assignment in user_map[user]:
+        print("\t" + assignment)
 
 
-#user_map = get_user_map(users, )
 generate_JS(user_map)
 render_template(user_map)
-#generate_admin(users)

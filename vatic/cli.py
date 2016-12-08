@@ -1186,6 +1186,9 @@ class listvideos(Command):
                 for segment in video.segments:
                     url = segment.jobs[0].offlineurl(config.localhost)
                     user_map[user][assignment].append(url)
+            w = open("data//user_map.json","w")
+            json.dump(user_map, w)
+            w.close()
 
             for user in user_map:
                 print(user + ":")
@@ -1193,9 +1196,7 @@ class listvideos(Command):
                     print("\t{}:".format(assignment))
                     for url in user_map[user][assignment]:
                         print("\t\t{}".format(url))
-            w = open("user_map.json","w")
-            json.dump(user_map, w)
-            w.close()
+
 
 
 
@@ -1206,4 +1207,21 @@ class listvideos(Command):
                     print "{0:>3}/{1:<8}".format(video.numcompleted, video.numjobs),
                     print "${0:<15.2f}".format(video.cost),
                     print("hello") ,
-                    print ""
+                print ""
+@handler("Delete a loaded video", "delete")
+class deletevideo(Command):
+    def setup(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument("slug")
+
+        return parser
+
+    def __call__(self, args):
+        videos = session.query(Video)
+        for video in videos:
+            if video.slug == args.slug:
+                session.delete(video)
+                session.commit()
+                print("The video:{} has been deleted".format(video.slug))
+                return
+        print("The specified video {} not found".format(args.slug))
