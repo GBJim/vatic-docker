@@ -82,15 +82,18 @@ def render_template(user_map,URL_padding=16 ,output_path="./public/directory/ind
 
     <div class="text-center panel list-group">
         {% for user in user_map %}
-            <a href="#" data-parent="#menu" class="list-group-item" data-toggle="collapse" data-target="#{{user}}"><h2>{{  user }}</h2></a>
-            <div id={{user}} class="collapse">
+
+            <a href="#" data-parent="#menu" class="list-group-item" data-toggle="collapse" data-target="#{{user}}"><h2>{{  user }} <span class = "glyphicon glyphicon-collapse-down" /></h2></a>
+            <div id={{user}} class="panel collapse">
                 {%for assignment in user_map[user]%}
-                    <h3>{{assignment}}</h3>
-                    <ul class="list-group">
-                    {% for url in user_map[user][assignment] %}
-                        <li><a href={{url.url}}>{{user}}'s Segment:{{url.count}} </a></li>
-                    {% endfor %}
-                    </ul>
+                    <a href="#" data-toggle="collapse" data-target="#{{user}}-{{assignment | replace("_","-") | replace(".","-")}}"><h3>{{assignment}} <span class = "glyphicon glyphicon-collapse-down" /></h3></a>
+                    <div id="{{user}}-{{assignment | replace("_","-") | replace(".","-")}}" class="collapse" data-parent="#{{user}}">
+                        <ul class="list-group">
+                        {% for url in user_map[user][assignment] %}
+                            <li><a href={{url.url}}>{{user}}'s Segment:{{url.count}} </a></li>
+                        {% endfor %}
+                        </ul>
+                    </div>
                 {% endfor %}
             </div>
             {% endfor %}
