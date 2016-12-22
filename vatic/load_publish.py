@@ -2,7 +2,7 @@ from subprocess import call, check_output
 import json
 import re
 import jinja2
-users = ["Debbie", "Wen-Ling"]
+users = [ "Wen-Ling", "Liang-Ju"]
 
 
 def generate_admin(users, URLS, URL_padding=16 ):
@@ -63,7 +63,7 @@ def render_template(user_map,URL_padding=16 ,output_path="./public/directory/ind
             for i,url in enumerate(user_map[user][assignment]):
                 counter += 1
                 print(url)
-                user_map[user][assignment][i] = {"url":url[URL_padding:], "count":counter}
+                user_map[user][assignment][i] = {"url":url[URL_padding:], "count":i+1}
 
 
 
@@ -90,7 +90,7 @@ def render_template(user_map,URL_padding=16 ,output_path="./public/directory/ind
                     <div id="{{user}}-{{assignment | replace("_","-") | replace(".","-")}}" class="collapse" data-parent="#{{user}}">
                         <ul class="list-group">
                         {% for url in user_map[user][assignment] %}
-                            <li><a href={{url.url}}>{{user}}'s Segment:{{url.count}} </a></li>
+                            <li><a href={{url.url}}>{{user}}'s {{assignment}}:{{url.count}} </a></li>
                         {% endfor %}
                         </ul>
                     </div>
