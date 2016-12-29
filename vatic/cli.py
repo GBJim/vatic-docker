@@ -4,6 +4,7 @@ import math
 import argparse
 import config
 import shutil
+import subprocess
 from turkic.cli import handler, importparser, Command, LoadCommand
 from turkic.database import session
 import sqlalchemy
@@ -539,7 +540,10 @@ class dump(DumpCommand):
     def setup(self):
         parser = argparse.ArgumentParser(parents = [self.parent])
         parser.add_argument("--output", "-o")
+
         parser.add_argument("--xml", "-x",
+            action="store_true", default=False)
+        parser.add_argument("--vbb",
             action="store_true", default=False)
         parser.add_argument("--json", "-j",
             action="store_true", default=False)
@@ -569,8 +573,9 @@ class dump(DumpCommand):
             file = args.output
             print "Dumping video {0}".format(video.slug)
         elif args.output:
-            file = open(args.output, 'w')
-            print "Dumping video {0}".format(video.slug)
+            if not args.vbb:
+                file = open(args.output, 'w')
+                print "Dumping video {0}".format(video.slug)
         else:
             file = cStringIO.StringIO()
 
@@ -594,6 +599,9 @@ class dump(DumpCommand):
 
         if args.xml:
             self.dumpxml(file, data)
+        elif args.vbb:
+            output_dir = args.output + "/set000/V000/"
+            self.dumpvbb(output_dir,data)
         elif args.json:
             self.dumpjson(file, data)
         elif args.matlab:
@@ -614,9 +622,11 @@ class dump(DumpCommand):
         if args.pascal:
             return
         elif args.output:
-            file.close()
+            if not args.vbb:
+                file.close()
         else:
             sys.stdout.write(file.getvalue())
+
 
     def dumpmatlab(self, file, data, video, scale):
         results = []
@@ -700,6 +710,62 @@ class dump(DumpCommand):
 
         import pickle
         pickle.dump(annotations, file, protocol = 2)
+
+    def dumpvbb(self, output_dir, data, prefix_length=6):
+        if not os.path.isdir(output_dir):
+            subprocess.call(["mkdir", "-p", output_dir])
+
+
+        box_by_frame = {}
+        for id, track in enumerate(data):
+            for box in track.boxes:
+                if box.lost:
+                    continue
+                frame = box.frame
+                if frame not in box_by_frame:
+                    box_by_frame[frame] = {}
+
+                box_by_frame[frame][id] = {}
+                box_by_frame[frame][id]['lbl'] = track.label
+                box_by_frame[frame][id]['bb'] = [box.xtl, box.ytl, box.xbr, box.ybr]
+                box_by_frame[frame][id]['occ'] = box.occluded
+                box_by_frame[frame][id]['bbv'] = [0, 0, 0, 0]
+                box_by_frame[frame][id]['ign'] = box.lost
+                box_by_frame[frame][id]['ang'] = 0
+        min_frame = min(box_by_frame.keys())
+        max_frame = max(box_by_frame.keys())
+        format_frame = lambda frame: "0"*(prefix_length-len(str(frame))) + str(frame)
+        for frame in range(min_frame, max_frame+1):
+            file_name = output_dir + "set00_V000_I{}.jpg.txt".format(format_frame(frame))
+            w = open(file_name, 'w')
+            w.write("% bbGt version=3\n")
+            for box in box_by_frame[frame].values():
+                x1, y1, x2, y2 = box['bb']
+                width = x2 - x1
+                height = y2 -y1
+
+                w.write("{} {} {} {} {} ".format(box['lbl'], x1, y1, width, height))
+
+                x1v, y1v, x2v, y2v = box['bbv']
+                widthv = x2v - x1v
+                heightv = y2v -y1v
+
+                w.write("{} {} {} {} {} ".format(box['occ'], x1v, y1v, widthv, heightv))
+                w.write("{} {}\n".format(box['ign'], box['ang']))
+
+            w.close()
+
+            print("Frame{} has {} boxes".format(frame,len(box_by_frame[frame].values())))
+        print("{} Frame VBB files have been writen".format(frame))
+
+
+
+
+
+
+
+
+
 
     def dumptext(self, file, data):
         for id, track in enumerate(data):
