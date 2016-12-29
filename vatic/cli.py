@@ -711,7 +711,7 @@ class dump(DumpCommand):
         import pickle
         pickle.dump(annotations, file, protocol = 2)
 
-    def dumpvbb(self, output_dir, data, prefix_length=6):
+    def dumpvbb(self, output_dir, data, prefix_length=5):
         if not os.path.isdir(output_dir):
             subprocess.call(["mkdir", "-p", output_dir])
 
@@ -739,7 +739,8 @@ class dump(DumpCommand):
             file_name = output_dir + "set00_V000_I{}.jpg.txt".format(format_frame(frame))
             w = open(file_name, 'w')
             w.write("% bbGt version=3\n")
-            for box in box_by_frame[frame].values():
+	    boxes = box_by_frame.get(frame, {})
+            for box in boxes.values():
                 x1, y1, x2, y2 = box['bb']
                 width = x2 - x1
                 height = y2 -y1
@@ -755,7 +756,7 @@ class dump(DumpCommand):
 
             w.close()
 
-            print("Frame{} has {} boxes".format(frame,len(box_by_frame[frame].values())))
+            print("Frame{} has {} boxes".format(frame,len(boxes)))
         print("{} Frame VBB files have been writen".format(frame))
 
 
