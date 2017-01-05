@@ -25,6 +25,9 @@ import vision.pascal
 import itertools
 from xml.etree import ElementTree
 import json
+import glob
+import fnmatch
+
 
 @handler("Decompresses an entire video into frames")
 class extract(Command):
@@ -545,6 +548,11 @@ class dump(DumpCommand):
             action="store_true", default=False)
         parser.add_argument("--vbb",
             action="store_true", default=False)
+
+
+        parser.add_argument("--image",
+            action="store_true", default=False)
+
         parser.add_argument("--json", "-j",
             action="store_true", default=False)
         parser.add_argument("--matlab", "-ml",
@@ -573,7 +581,7 @@ class dump(DumpCommand):
             file = args.output
             print "Dumping video {0}".format(video.slug)
         elif args.output:
-            if not args.vbb:
+            if not args.vbb and not args.image:
                 file = open(args.output, 'w')
                 print "Dumping video {0}".format(video.slug)
         else:
@@ -602,6 +610,8 @@ class dump(DumpCommand):
         elif args.vbb:
             output_dir = args.output + "/set000/V000/"
             self.dumpvbb(output_dir,data)
+        elif args.image:
+            self.dumpimage(video, args.output)
         elif args.json:
             self.dumpjson(file, data)
         elif args.matlab:
@@ -622,7 +632,7 @@ class dump(DumpCommand):
         if args.pascal:
             return
         elif args.output:
-            if not args.vbb:
+            if not args.vbb and not args.image:
                 file.close()
         else:
             sys.stdout.write(file.getvalue())
@@ -684,19 +694,21 @@ class dump(DumpCommand):
             result['label'] = track.label
             boxes = {}
             for box in track.boxes:
+                frame = int(box.frame)
                 boxdata = {}
-                boxdata['xtl'] = box.xtl
-                boxdata['ytl'] = box.ytl
-                boxdata['xbr'] = box.xbr
-                boxdata['ybr'] = box.ybr
+                boxdata['x1'] = box.xtl
+                boxdata['y1'] = box.ytl
+                boxdata['width'] = box.xbr - box.xtl
+                boxdata['height'] = box.ybr - box.ytl
                 boxdata['outside'] = box.lost
                 boxdata['occluded'] = box.occluded
                 boxdata['attributes'] = box.attributes
-                boxes[int(box.frame)] = boxdata
-            result['boxes'] = boxes
-            annotations[int(id)] = result
 
-        import json
+                if frame not in annotations:
+                    annotations[frame] = {}
+                annotations[frame][id] = boxdata
+
+
         json.dump(annotations, file)
         file.write("\n")
 
@@ -710,6 +722,34 @@ class dump(DumpCommand):
 
         import pickle
         pickle.dump(annotations, file, protocol = 2)
+
+
+
+    def dumpimage(self, video, output_dir):
+        assignment = video.slug
+        video_name = assignment[assignment.find("_")+1:]
+        video_path = "./data/frames_in/{}/".format(video_name)
+
+
+
+        img_paths = {}
+        for path, dir_name, filenames in os.walk(video_path):
+            for file_name in fnmatch.filter(filenames, '*.jpg'):
+                file_number = int(file_name[:-4])
+                img_paths[file_number] = os.path.join(path, file_name)
+
+        output_dir = os.path.join(output_dir, "images")
+        if not os.path.isdir(output_dir):
+            subprocess.call(["mkdir", "-p", output_dir])
+
+        for file_number in sorted(img_paths):
+            img_path = img_paths[file_number]
+            new_file_name = "set00_V000_{}.jpg".format(file_number)
+            new_path = os.path.join(output_dir, new_file_name)
+            cmd = ["cp", img_path, new_path]
+            subprocess.call(cmd)
+
+
 
     def dumpvbb(self, output_dir, data, prefix_length=5):
         if not os.path.isdir(output_dir):
