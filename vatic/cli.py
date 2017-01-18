@@ -608,8 +608,8 @@ class dump(DumpCommand):
         if args.xml:
             self.dumpxml(file, data)
         elif args.vbb:
-            output_dir = args.output + "/set000/V000/"
-            self.dumpvbb(output_dir,data)
+            output_dir = args.output + "/set00/V000/"
+            self.dumpvbb(video,output_dir,data)
         elif args.image:
             self.dumpimage(video, args.output)
         elif args.json:
@@ -751,9 +751,14 @@ class dump(DumpCommand):
 
 
 
-    def dumpvbb(self, output_dir, data, prefix_length=5):
+    def dumpvbb(self, video, output_dir, data, prefix_length=5):
         if not os.path.isdir(output_dir):
             subprocess.call(["mkdir", "-p", output_dir])
+
+
+        assignment = video.slug
+        video_name = assignment[assignment.find("_")+1:]
+        frames_location = "./data/frames_in/{}/".format(video_name)
 
 
         box_by_frame = {}
@@ -772,14 +777,27 @@ class dump(DumpCommand):
                 box_by_frame[frame][id]['bbv'] = [0, 0, 0, 0]
                 box_by_frame[frame][id]['ign'] = box.lost
                 box_by_frame[frame][id]['ang'] = 0
-        min_frame = min(box_by_frame.keys())
-        max_frame = max(box_by_frame.keys())
+        min_frame = 0
+
+        toplevel = max(int(x)
+            for x in os.listdir(frames_location))
+        secondlevel = max(int(x)
+            for x in os.listdir("{0}/{1}".format(frames_location, toplevel)))
+        max_frame = max(int(os.path.splitext(x)[0])
+            for x in os.listdir("{0}/{1}/{2}"
+            .format(frames_location, toplevel, secondlevel))) + 1
+
+
+
+
+
+        #max_frame = max(box_by_frame.keys())
         format_frame = lambda frame: "0"*(prefix_length-len(str(frame))) + str(frame)
-        for frame in range(min_frame, max_frame+1):
+        for frame in range(min_frame, max_frame):
             file_name = output_dir + "set00_V000_I{}.jpg.txt".format(format_frame(frame))
             w = open(file_name, 'w')
             w.write("% bbGt version=3\n")
-	    boxes = box_by_frame.get(frame, {})
+            boxes = box_by_frame.get(frame, {})
             for box in boxes.values():
                 x1, y1, x2, y2 = box['bb']
                 width = x2 - x1
