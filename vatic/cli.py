@@ -27,7 +27,7 @@ from xml.etree import ElementTree
 import json
 import glob
 import fnmatch
-
+from natsort import natsorted
 
 @handler("Decompresses an entire video into frames")
 class extract(Command):
@@ -724,11 +724,12 @@ class dump(DumpCommand):
         pickle.dump(annotations, file, protocol = 2)
 
 
-
-    def dumpimage(self, video, output_dir):
+    def dumpimage(self, data,video, output_dir):
         assignment = video.slug
         video_name = assignment[assignment.find("_")+1:]
         video_path = "./data/frames_in/{}/".format(video_name)
+
+
 
 
 
@@ -742,16 +743,28 @@ class dump(DumpCommand):
         if not os.path.isdir(output_dir):
             subprocess.call(["mkdir", "-p", output_dir])
 
-        for file_number in sorted(img_paths):
+        min_frame = 0
+        max_frame = 0
+        for id, track in enumerate(data):
+            for box in track.boxes:
+                frame = box.frame
+                if frame > max_frame:
+                    max_frame = frame
+
+
+        for file_number in range(min_frame, max_frame+1)
             img_path = img_paths[file_number]
             new_file_name = "set00_V000_{}.jpg".format(file_number)
             new_path = os.path.join(output_dir, new_file_name)
             cmd = ["cp", img_path, new_path]
             subprocess.call(cmd)
+        print("{} of images are dumped. From frame {} to {}".format(max_frame-min_frame ,min_frame ,max_frame ))
 
 
 
-    def dumpvbb(self, video, output_dir, data, prefix_length=5):
+
+
+    def dumpvbb(self, video, output_dir, data):
         if not os.path.isdir(output_dir):
             subprocess.call(["mkdir", "-p", output_dir])
 
@@ -760,15 +773,19 @@ class dump(DumpCommand):
         video_name = assignment[assignment.find("_")+1:]
         frames_location = "./data/frames_in/{}/".format(video_name)
 
+        min_frame = 0
+        max_frame = 0
 
         box_by_frame = {}
         for id, track in enumerate(data):
             for box in track.boxes:
-                if box.lost:
-                    continue
+
                 frame = box.frame
                 if frame not in box_by_frame:
                     box_by_frame[frame] = {}
+
+                if frame > max_frame:
+                    max_frame = frame
 
                 box_by_frame[frame][id] = {}
                 box_by_frame[frame][id]['lbl'] = track.label
@@ -776,11 +793,7 @@ class dump(DumpCommand):
                 box_by_frame[frame][id]['occ'] = box.occluded
                 box_by_frame[frame][id]['bbv'] = [0, 0, 0, 0]
                 box_by_frame[frame][id]['ign'] = box.lost
-                box_by_frame[frame][id]['ang'] = 0
-        min_frame = 0
-
-        toplevel = max(int(x)
-            for x in os.listdir(frames_location))
+                box_by_frame[frame][id]['ang'] =你是週二口試嗎  那天晚上還會在清大嗎ion))
         secondlevel = max(int(x)
             for x in os.listdir("{0}/{1}".format(frames_location, toplevel)))
         max_frame = max(int(os.path.splitext(x)[0])
@@ -791,10 +804,11 @@ class dump(DumpCommand):
 
 
 
-        #max_frame = max(box_by_frame.keys())
-        format_frame = lambda frame: "0"*(prefix_length-len(str(frame))) + str(frame)
-        for frame in range(min_frame, max_frame):
-            file_name = output_dir + "set00_V000_I{}.jpg.txt".format(format_frame(frame))
+
+        max_frame = max(box_by_frame.keys())
+        #format_frame = lambda frame: "0"*(prefix_length-len(str(frame))) + str(frame)
+        for frame in range(min_frame, max_frame+1):
+            file_name = output_dir + "set00_V000_I{}.jpg.txt".format(frame)
             w = open(file_name, 'w')
             w.write("% bbGt version=3\n")
             boxes = box_by_frame.get(frame, {})
@@ -814,8 +828,9 @@ class dump(DumpCommand):
 
             w.close()
 
-            print("Frame{} has {} boxes".format(frame,len(boxes)))
-        print("{} Frame VBB files have been writen".format(frame))
+            #print("Frame{} has {} boxes".format(frame,len(boxes)))
+
+        print("{} Frame VBB files have been writen. From frame {} to {}".format(frame,,min_frame ,max_frame ))
 
 
 
