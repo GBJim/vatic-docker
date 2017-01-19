@@ -751,7 +751,7 @@ class dump(DumpCommand):
 
 
 
-    def dumpvbb(self, video, output_dir, data, prefix_length=5):
+    def dumpvbb(self, video, output_dir, data):
         if not os.path.isdir(output_dir):
             subprocess.call(["mkdir", "-p", output_dir])
 
@@ -792,9 +792,9 @@ class dump(DumpCommand):
 
 
         #max_frame = max(box_by_frame.keys())
-        format_frame = lambda frame: "0"*(prefix_length-len(str(frame))) + str(frame)
+        #format_frame = lambda frame: "0"*(prefix_length-len(str(frame))) + str(frame)
         for frame in range(min_frame, max_frame):
-            file_name = output_dir + "set00_V000_I{}.jpg.txt".format(format_frame(frame))
+            file_name = output_dir + "set00_V000_I{}.jpg.txt".format(frame)
             w = open(file_name, 'w')
             w.write("% bbGt version=3\n")
             boxes = box_by_frame.get(frame, {})
