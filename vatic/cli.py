@@ -810,8 +810,16 @@ class dump(DumpCommand):
                 x1, y1, x2, y2 = box['bb']
                 width = x2 - x1
                 height = y2 -y1
+                if box['ign']:
+                    print("ignored")
+                    label = "ignore"
+                elif box['occ']:
+                    print("occlusion")
+                    label = "person-occu"
+                else:
+                    label = "person"
 
-                w.write("{} {} {} {} {} ".format(box['lbl'], x1, y1, width, height))
+                w.write("{} {} {} {} {} ".format(label, x1, y1, width, height))
 
                 x1v, y1v, x2v, y2v = box['bbv']
                 widthv = x2v - x1v
