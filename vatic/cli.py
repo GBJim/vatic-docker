@@ -681,10 +681,10 @@ class dump(DumpCommand):
         if args.xml:
             self.dumpxml(file, data)
         elif args.vbb:
-            output_dir = args.output + "/set00/V000/"
-            self.dumpvbb(video,output_dir,data, frame_skip, translate_frame)
+            output_dir = args.output + "/annotations"
+            self.dumpvbb(video,output_dir,data, frame_skip,  FrameTranslator)
         elif args.image:
-            self.dumpImage(data, video, args.output, frame_skip, translate_frame)
+            self.dumpImage(data, video, args.output, frame_skip,  FrameTranslator)
         elif args.json:
             self.dumpjson(file, data, frame_skip, FrameTranslator)
         elif args.matlab:
@@ -814,7 +814,7 @@ class dump(DumpCommand):
         pickle.dump(annotations, file, protocol = 2)
 
 
-    def dumpImage(self, data, video, output_dir, frame_skip, classify_set):
+    def dumpImage(self, data, video, output_dir, frame_skip, FrameTranslator):
         assignment = video.slug
         video_name = assignment[assignment.find("_")+1:]
         video_path = "./data/frames_in/{}/".format(video_name)
@@ -839,26 +839,29 @@ class dump(DumpCommand):
             for box in track.boxes:
                 frame = box.frame
                 if frame > max_frame:
-                    max_frame = framedumpjson
+                    max_frame = frame
 
+        ft = FrameTranslator(max_frame)
 
+        report = {}
         for file_number in range(min_frame, max_frame+1):
+            set_num, new_file_number = ft.translate(file_number)
+            if set_num == "ignore" or set_num == "overscope":
+                continue
             img_path = img_paths[file_number]
-            new_file_name = "set00_V000_{}.jpg".format(file_number)
+            new_file_name = "set0{}_V000_{}.jpg".format(set_num,new_file_number)
             new_path = os.path.join(output_dir, new_file_name)
             cmd = ["cp", img_path, new_path]
             subprocess.call(cmd)
-        print("{} of images are dumped. From frame {} to {}".format(max_frame-min_frame ,min_frame ,max_frame ))
+            report[set_num] = report.get(set_num, 0) +1
+
+        print("{} of images are dumped. From frame {} to {} ---> sets:{}".format(max_frame-min_frame ,min_frame ,max_frame, report))
 
 
 
 
 
-    def dumpvbb(self, video, output_dir, data, frame_skip, classify_set):
-        if not os.path.isdir(output_dir):
-            subprocess.call(["mkdir", "-p", output_dir])
-
-
+    def dumpvbb(self, video, output_dir, data, frame_skip, FrameTranslator):
         assignment = video.slug
         video_name = assignment[assignment.find("_")+1:]
         frames_location = "./data/frames_in/{}/".format(video_name)
@@ -885,14 +888,22 @@ class dump(DumpCommand):
                 box_by_frame[frame][id]['ign'] = box.lost
                 box_by_frame[frame][id]['ang'] = 0
 
+        ft = FrameTranslator(max_frame)
 
+        report = {}
 
-
-
-        max_frame = max(box_by_frame.keys())
-        #format_frame = lambda frame: "0"*(prefix_length-len(str(frame))) + str(frame)
         for frame in range(min_frame, max_frame+1):
-            file_name = output_dir + "set00_V000_I{}.jpg.txt".format(frame)
+            set_num, new_frame = ft.translate(frame)
+            if set_num == "ignore" or set_num == "overscope":
+                continue
+            target_dir = os.path.join(output_dir, "set0{}".format(set_num))
+
+            if not os.path.isdir(target_dir):
+                subprocess.call(["mkdir", "-p", target_dir])
+
+
+            file_name = os.path.join(target_dir, "set0{}_V000_I{}.jpg.txt".format(set_num, new_frame))
+
             w = open(file_name, 'w')
             w.write("% bbGt version=3\n")
             boxes = box_by_frame.get(frame, {})
@@ -919,10 +930,10 @@ class dump(DumpCommand):
                 w.write("{} {}\n".format(box['ign'], box['ang']))
 
             w.close()
-
+            report[set_num] = report.get(set_num, 0 ) + 1
             #print("Frame{} has {} boxes".format(frame,len(boxes)))
 
-        print("{} Frame VBB files have been writen. From frame {} to {}".format(frame, min_frame, max_frame ))
+        print("{} Frame VBB files have been writen. From frame {} to {} ---> set: {}".format(frame, min_frame, max_frame,report ))
 
 
 
