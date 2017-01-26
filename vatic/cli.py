@@ -696,10 +696,11 @@ class dump(DumpCommand):
             for box in track.boxes:
                 frame = int(box.frame)
                 boxdata = {}
+		boxdata['label'] = track.label
                 boxdata['x1'] = box.xtl
                 boxdata['y1'] = box.ytl
-                boxdata['width'] = box.xbr - box.xtl
-                boxdata['height'] = box.ybr - box.ytl
+                boxdata['width'] = box.xbr
+                boxdata['height'] = box.ybr
                 boxdata['outside'] = box.lost
                 boxdata['occluded'] = box.occluded
                 boxdata['attributes'] = box.attributes
