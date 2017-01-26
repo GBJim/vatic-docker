@@ -561,6 +561,13 @@ class dump(DumpCommand):
             action="store_true", default=False)
         parser.add_argument("--labelme", "-vlm",
             action="store", default=False)
+
+        parser.add_argument("--split", type=str, default=None,\
+            help="Specify whether to split data into train and test set\nExample: train:test --> 5:5")
+        parser.add_argument("--split-dist", type=int, default=1800,\
+            help="The frame distance between traing and testing set.")
+
+        parser.add_argument("--frame-skip", type=str, default=None)
         parser.add_argument("--pascal", action="store_true", default=False)
         parser.add_argument("--pascal-difficult", type = int, default = 100)
         parser.add_argument("--pascal-skip", type = int, default = 15)
@@ -573,6 +580,72 @@ class dump(DumpCommand):
 
     def __call__(self, args):
         video, data = self.getdata(args)
+
+        if args.frame_skip:
+            frame_skip = split(":")
+            if len(frame_skip) != 3:
+                frame_skip = None
+            else:
+                start, duration, period = frame_skip
+                print("Frmae Skipping Specified ---> Start: {}, Duration: {}, Period: {}".format(start, duration, period))
+                frame_skip = (int(start), int(duration), int(period))
+
+        else:
+            frame_skip = None
+
+        if args.split:
+            split_ratios = [int(ratio) for ratio in args.split.split(":")]
+
+
+            class FrameTranslator(object):
+                def __init__(self, max_frame):
+
+                    if args.split_dist > max_frame-sum(split_ratios):
+                        print("Set split distance to zero since the default distance {} is too large for totally {} frames".format(args.split_dist, max_frame))
+                        split_dist = 0
+                    else:
+                        split_dist = args.split_dist
+
+                    args.split_dist
+                    print("Split Ratios:",split_ratios)
+                    total_frame = max_frame - (len(split_ratios)-1) * split_dist
+                    self.frame_2_set = []
+                    segments = []
+
+
+                    for i, ratio in enumerate(split_ratios):
+                        frames_per_set = total_frame * ratio / sum(split_ratios)
+                        print(total_frame, frames_per_set)
+                        segments.append((frames_per_set, i))
+                    for i, segment in enumerate(segments):
+                        if i > 0 and i % 2 and split_dist:
+                            ignore = (split_dist, "ignore")
+                            segments.insert(i, ignore)
+
+                    for segment in segments:
+                        amount, set_name = segment
+                        print(amount)
+                        self.frame_2_set += [(set_name, i) for i in range(amount)]
+
+                def translate(self, frame):
+                    print(frame, len(self.frame_2_set))
+
+                    if frame < len(self.frame_2_set):
+                        return self.frame_2_set[frame]
+
+                    else:
+                        return ("overscope", 0)
+
+
+        else:
+
+            class FrameTranslator(object):
+                def __init__(self, max_frame):
+                    max_frame + 1
+                def translate(self, frame):
+                    return 0, frame
+
+
 
         if args.pascal:
             if not args.output:
@@ -609,11 +682,11 @@ class dump(DumpCommand):
             self.dumpxml(file, data)
         elif args.vbb:
             output_dir = args.output + "/set00/V000/"
-            self.dumpvbb(video,output_dir,data)
+            self.dumpvbb(video,output_dir,data, frame_skip, translate_frame)
         elif args.image:
-            self.dumpImage(data, video, args.output)
+            self.dumpImage(data, video, args.output, frame_skip, translate_frame)
         elif args.json:
-            self.dumpjson(file, data)
+            self.dumpjson(file, data, frame_skip, FrameTranslator)
         elif args.matlab:
             self.dumpmatlab(file, data, video, scale)
         elif args.pickle:
@@ -687,7 +760,14 @@ class dump(DumpCommand):
             file.write("\t</track>\n")
         file.write("</annotations>\n")
 
-    def dumpjson(self, file, data):
+    def dumpjson(self, file, data, frame_skip, FrameTranslator):
+        max_frame = 0
+        for track in data:
+            for box in track.boxes:
+                max_frame = box.frame if max_frame < box.frame else max_frame
+        ft = FrameTranslator(max_frame)
+
+
         annotations = {}
         for id, track in enumerate(data):
             result = {}
@@ -695,22 +775,31 @@ class dump(DumpCommand):
             boxes = {}
             for box in track.boxes:
                 frame = int(box.frame)
+                set_num, new_frame = ft.translate(frame)
+                print(set_num, new_frame)
+                if set_num == "ignore" or set_num == "overscope":
+                    continue
                 boxdata = {}
-		boxdata['label'] = track.label
                 boxdata['x1'] = box.xtl
                 boxdata['y1'] = box.ytl
-                boxdata['width'] = box.xbr
-                boxdata['height'] = box.ybr
+                boxdata['width'] = box.xbr - box.xtl
+                boxdata['height'] = box.ybr - box.ytl
                 boxdata['outside'] = box.lost
                 boxdata['occluded'] = box.occluded
                 boxdata['attributes'] = box.attributes
+                if set_num not in annotations:
+                    annotations[set_num] = {}
 
-                if frame not in annotations:
-                    annotations[frame] = {}
-                annotations[frame][id] = boxdata
+                if frame not in annotations[set_num]:
+                    annotations[set_num][new_frame] = {}
+                annotations[set_num][new_frame][id] = boxdata
 
+        report = {}
+        for set_num in annotations:
+            report["set_0" + str(set_num)] = max(annotations[set_num])
 
         json.dump(annotations, file)
+        print("Set {} has been dumped into a json file".format(report))
         file.write("\n")
 
     def dumppickle(self, file, data):
@@ -725,7 +814,7 @@ class dump(DumpCommand):
         pickle.dump(annotations, file, protocol = 2)
 
 
-    def dumpImage(self, data, video, output_dir):
+    def dumpImage(self, data, video, output_dir, frame_skip, classify_set):
         assignment = video.slug
         video_name = assignment[assignment.find("_")+1:]
         video_path = "./data/frames_in/{}/".format(video_name)
@@ -750,7 +839,7 @@ class dump(DumpCommand):
             for box in track.boxes:
                 frame = box.frame
                 if frame > max_frame:
-                    max_frame = frame
+                    max_frame = framedumpjson
 
 
         for file_number in range(min_frame, max_frame+1):
@@ -765,7 +854,7 @@ class dump(DumpCommand):
 
 
 
-    def dumpvbb(self, video, output_dir, data):
+    def dumpvbb(self, video, output_dir, data, frame_skip, classify_set):
         if not os.path.isdir(output_dir):
             subprocess.call(["mkdir", "-p", output_dir])
 
