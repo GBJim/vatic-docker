@@ -781,8 +781,8 @@ class dump(DumpCommand):
                 boxdata = {}
                 boxdata['x1'] = box.xtl
                 boxdata['y1'] = box.ytl
-                boxdata['width'] = box.xbr
-                boxdata['height'] = box.ybr
+                boxdata['width'] = box.xbr - box.xtl
+                boxdata['height'] = box.ybr - box.ytl
                 boxdata['outside'] = box.lost
                 boxdata['occluded'] = box.occluded
                 boxdata['attributes'] = box.attributes
