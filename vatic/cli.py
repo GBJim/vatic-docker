@@ -606,7 +606,6 @@ class dump(DumpCommand):
                     else:
                         split_dist = args.split_dist
 
-                    args.split_dist
                     print("Split Ratios:",split_ratios)
                     total_frame = max_frame - (len(split_ratios)-1) * split_dist
                     self.frame_2_set = []
@@ -770,8 +769,8 @@ class dump(DumpCommand):
 
         annotations = {}
         for id, track in enumerate(data):
-            result = {}
-            result['label'] = track.label
+
+
             boxes = {}
             for box in track.boxes:
                 frame = int(box.frame)
@@ -782,15 +781,16 @@ class dump(DumpCommand):
                 boxdata = {}
                 boxdata['x1'] = box.xtl
                 boxdata['y1'] = box.ytl
-                boxdata['width'] = box.xbr - box.xtl
-                boxdata['height'] = box.ybr - box.ytl
+                boxdata['width'] = box.xbr
+                boxdata['height'] = box.ybr
                 boxdata['outside'] = box.lost
                 boxdata['occluded'] = box.occluded
                 boxdata['attributes'] = box.attributes
+                boxdata['label'] = track.label
                 if set_num not in annotations:
                     annotations[set_num] = {}
 
-                if frame not in annotations[set_num]:
+                if new_frame not in annotations[set_num]:
                     annotations[set_num][new_frame] = {}
                 annotations[set_num][new_frame][id] = boxdata
 
