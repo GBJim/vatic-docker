@@ -829,9 +829,8 @@ class dump(DumpCommand):
                 file_number = int(file_name[:-4])
                 img_paths[file_number] = os.path.join(path, file_name)
 
-        output_dir = os.path.join(output_dir, "images")
-        if not os.path.isdir(output_dir):
-            subprocess.call(["mkdir", "-p", output_dir])
+        base_output_dir = output_dir
+
 
         min_frame = 0
         max_frame = 0
@@ -848,6 +847,12 @@ class dump(DumpCommand):
             set_num, new_file_number = ft.translate(file_number)
             if set_num == "ignore" or set_num == "overscope":
                 continue
+
+            output_dir = os.path.join(base_output_dir, "images", "set0{}".format(set_num), "V000")
+            if not os.path.isdir(output_dir):
+                subprocess.call(["mkdir", "-p", output_dir])
+
+
             img_path = img_paths[file_number]
             new_file_name = "set0{}_V000_{}.jpg".format(set_num,new_file_number)
             new_path = os.path.join(output_dir, new_file_name)
