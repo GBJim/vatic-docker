@@ -8,6 +8,10 @@ TURKOPS="--offline --title HelloTurk!"
 LABELS="person car"
 HOST_ADDRESS_FILE=/root/vatic/data/tmp/host_address.txt
 
+
+#install natsort
+pip install natsort
+
 # Start database and server
 /root/vatic/startup.sh
 
