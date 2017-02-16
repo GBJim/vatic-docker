@@ -1,3 +1,14 @@
+#This is a fork of [Vatic-Docker ](https://github.com/jldowns/vatic-docker).
+This version is focused on the **Vatic Offline Mode** which doesn't rely on the Amazon Mechanical Turk service
+The following functions are added to turkic CLI
+  1.turkic delete ASSIGNMENT  --> Delete a assignment(worker-video pair)
+  2.turkic dump --image  --> Dump video frames into CatlTech Toolkit convention
+  3.turkic dump --json  --> Dump annotations into JSON format. The structure has been modified to frame-based indexing
+  4.turkic dump --split A:B --> Split mechanism that automatically divides data into multiple splits
+  5.turkic dump --vbb   --> Dump annotations into vbb txt files that accepted by CalTech Toolkit
+  6.turkic list --detail  --> List detailed hyperlinks-worker mapping of assignments and generate a user_map file.
+
+
 # vatic-docker [![Build Status](https://travis-ci.org/jldowns/vatic-docker.svg?branch=master)](https://travis-ci.org/jldowns/vatic-docker)
 
 Dockerfile and configuration files for using VATIC in a Docker container. Uses the VATIC software located at https://github.com/cvondrick/vatic
